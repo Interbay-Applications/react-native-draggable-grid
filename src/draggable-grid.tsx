@@ -25,6 +25,7 @@ interface IBaseItemType {
 export interface IDraggableGridProps<DataType extends IBaseItemType> {
   numColumns: number
   data: DataType[]
+  key?: string
   renderItem: (item: DataType, order: number) => React.ReactElement<any>
   style?: ViewStyle
   itemHeight?: number
@@ -71,6 +72,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
     height: 0,
   })
   const [activeItemIndex, setActiveItemIndex] = useState<undefined | number>()
+  const [key, ] = useState(props.key ? props.key : 'key')
 
   const assessGridSize = (event: IOnLayoutEvent) => {
     if (!hadInitBlockSize) {
@@ -125,7 +127,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
     if (!activeItem) return false
     props.onDragStart && props.onDragStart(activeItem.itemData)
     const { x0, y0, moveX, moveY } = gestureState
-    const activeOrigin = blockPositions[orderMap[activeItem.key].order]
+    const activeOrigin = blockPositions[orderMap[activeItem[key]].order]
     const x = activeOrigin.x - x0
     const y = activeOrigin.y - y0
     activeItem.currentPosition.setOffset({
@@ -154,7 +156,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
       x: moveX - xChokeAmount - xMinChokeAmount,
       y: moveY,
     }
-    const originPosition = blockPositions[orderMap[activeItem.key].order]
+    const originPosition = blockPositions[orderMap[activeItem[key]].order]
     const dragPositionToActivePositionDistance = getDistance(dragPosition, originPosition)
     activeItem.currentPosition.setValue(dragPosition)
 
@@ -166,7 +168,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
       if (index != activeItemIndex) {
         const dragPositionToItemPositionDistance = getDistance(
           dragPosition,
-          blockPositions[orderMap[item.key].order],
+          blockPositions[orderMap[item[key]].order],
         )
         if (
           dragPositionToItemPositionDistance < closetDistance &&
@@ -178,9 +180,9 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
       }
     })
     if (activeItemIndex != closetItemIndex) {
-      const closetOrder = orderMap[items[closetItemIndex].key].order
-      resetBlockPositionByOrder(orderMap[activeItem.key].order, closetOrder)
-      orderMap[activeItem.key].order = closetOrder
+      const closetOrder = orderMap[items[closetItemIndex][key]].order
+      resetBlockPositionByOrder(orderMap[activeItem[key]].order, closetOrder)
+      orderMap[activeItem[key]].order = closetOrder
       props.onResetSort && props.onResetSort(getSortData())
     }
   }
@@ -190,7 +192,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
     props.onDragRelease && props.onDragRelease(getSortData())
     setPanResponderCapture(false)
     activeItem.currentPosition.flattenOffset()
-    moveBlockToBlockOrderPosition(activeItem.key)
+    moveBlockToBlockOrderPosition(activeItem[key])
     setActiveItemIndex(undefined)
   }
   function resetBlockPositionByOrder(activeItemOrder: number, insertedPositionOrder: number) {
@@ -222,7 +224,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
     }
   }
   function moveBlockToBlockOrderPosition(itemKey: string) {
-    const itemIndex = findIndex(items, item => item.key === itemKey)
+    const itemIndex = findIndex(items, item => item[key] === itemKey)
     items[itemIndex].currentPosition.flattenOffset()
     Animated.timing(items[itemIndex].currentPosition, {
       toValue: blockPositions[orderMap[itemKey].order],
@@ -237,7 +239,7 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
   function getSortData() {
     const sortData: DataType[] = []
     items.forEach(item => {
-      sortData[orderMap[item.key].order] = item.itemData
+      sortData[orderMap[item[key]].order] = item.itemData
     })
     return sortData
   }
@@ -310,40 +312,40 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
   }
   function addItem(item: DataType, index: number) {
     blockPositions.push(getBlockPositionByOrder(items.length))
-    orderMap[item.key] = {
+    orderMap[item[key]] = {
       order: index,
     }
-    itemMap[item.key] = item
+    itemMap[item[key]] = item
     items.push({
-      key: item.key,
+      key: item[key],
       itemData: item,
       currentPosition: new Animated.ValueXY(getBlockPositionByOrder(index)),
     })
   }
 
   function removeItem(item: IItem<DataType>) {
-    const itemIndex = findIndex(items, curItem => curItem.key === item.key)
+    const itemIndex = findIndex(items, curItem => curItem[key] === item[key])
     items.splice(itemIndex, 1)
     blockPositions.pop()
-    delete orderMap[item.key]
+    delete orderMap[item[key]]
   }
   function diffData() {
     props.data.forEach((item, index) => {
-      if (orderMap[item.key]) {
-        if (orderMap[item.key].order != index) {
-          orderMap[item.key].order = index
-          moveBlockToBlockOrderPosition(item.key)
+      if (orderMap[item[key]]) {
+        if (orderMap[item[key]].order != index) {
+          orderMap[item[key]].order = index
+          moveBlockToBlockOrderPosition(item[key])
         }
-        const currentItem = items.find(i => i.key === item.key)
+        const currentItem = items.find(i => i[key] === item[key])
         if (currentItem) {
           currentItem.itemData = item
         }
-        itemMap[item.key] = item
+        itemMap[item[key]] = item
       } else {
         addItem(item, index)
       }
     })
-    const deleteItems = differenceBy(items, props.data, 'key')
+    const deleteItems = differenceBy(items, props.data, key)
     deleteItems.forEach(item => {
       removeItem(item)
     })
@@ -370,8 +372,8 @@ export const DraggableGrid = function<DataType extends IBaseItemType>(
         panHandlers={panResponder.panHandlers}
         style={getBlockStyle(itemIndex)}
         dragStartAnimationStyle={getDragStartAnimation(itemIndex)}
-        key={item.key}>
-        {props.renderItem(item.itemData, orderMap[item.key].order)}
+        key={item[key]}>
+        {props.renderItem(item.itemData, orderMap[item[key]].order)}
       </Block>
     )
   })
